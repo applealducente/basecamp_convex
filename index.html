@@ -259,10 +259,15 @@ function getPages(){return loadPages()||DEFAULT_PAGES.slice();}
 // ── Upstash Redis functions ──
 async function loadPagesFromUpstash(){
   try{
-    var res=await fetch(window.UPSTASH_REST_URL+"/get/convex_pages",{
+    var url=window.UPSTASH_REST_URL+"/get/convex_pages";
+    var res=await fetch(url,{
+      method:"GET",
       headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN}
     });
-    if(!res.ok)return null;
+    if(!res.ok){
+      console.warn("Upstash GET failed:",res.status,res.statusText);
+      return null;
+    }
     var data=await res.json();
     if(data.result){
       var pages=JSON.parse(data.result);
@@ -276,12 +281,22 @@ async function loadPagesFromUpstash(){
 
 async function savePagesToUpstash(pages){
   try{
-    var res=await fetch(window.UPSTASH_REST_URL+"/set/convex_pages",{
+    var url=window.UPSTASH_REST_URL+"/set/convex_pages";
+    var pageStr=JSON.stringify(pages);
+    var res=await fetch(url,{
       method:"POST",
       headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN,"Content-Type":"application/json"},
-      body:JSON.stringify({value:JSON.stringify(pages)})
+      body:JSON.stringify(pageStr)
     });
-    return res.ok;
+    if(!res.ok){
+      console.error("Upstash SET failed:",res.status,res.statusText);
+      var errText=await res.text();
+      console.error("Response:",errText);
+      return false;
+    }
+    var data=await res.json();
+    console.log("Upstash save successful:",data);
+    return true;
   }catch(e){
     console.error("Could not save to Upstash:",e);
     return false;
@@ -485,8 +500,11 @@ async function publishChanges(){
   btn.disabled=true;
   btn.textContent="Saving...";
   try{
-    var success=await savePagesToUpstash(getPages());
+    var pages=getPages();
+    var success=await savePagesToUpstash(pages);
     if(success){
+      // Also save to localStorage as backup
+      savePages(pages);
       btn.textContent="Published!";
       setTimeout(function(){btn.textContent="Publish";btn.disabled=false;},2000);
     }else{
