@@ -255,53 +255,6 @@ var sectionColors={"Training":"#16A34A","Tools & Systems":"#2563EB","After-Sales
 function loadPages(){try{var s=localStorage.getItem("kb_pages");if(s)return JSON.parse(s);}catch(e){}return null;}
 function savePages(p){localStorage.setItem("kb_pages",JSON.stringify(p));}
 function getPages(){return loadPages()||DEFAULT_PAGES.slice();}
-
-// ── Upstash Redis functions ──
-async function loadPagesFromUpstash(){
-  try{
-    var url=window.UPSTASH_REST_URL+"/get/convex_pages";
-    var res=await fetch(url,{
-      method:"GET",
-      headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN}
-    });
-    if(!res.ok){
-      console.warn("Upstash GET failed:",res.status,res.statusText);
-      return null;
-    }
-    var data=await res.json();
-    if(data.result){
-      var pages=JSON.parse(data.result);
-      if(Array.isArray(pages))return pages;
-    }
-  }catch(e){
-    console.warn("Could not load from Upstash:",e);
-  }
-  return null;
-}
-
-async function savePagesToUpstash(pages){
-  try{
-    var url=window.UPSTASH_REST_URL+"/set/convex_pages";
-    var pageStr=JSON.stringify(pages);
-    var res=await fetch(url,{
-      method:"POST",
-      headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN,"Content-Type":"application/json"},
-      body:JSON.stringify(pageStr)
-    });
-    if(!res.ok){
-      console.error("Upstash SET failed:",res.status,res.statusText);
-      var errText=await res.text();
-      console.error("Response:",errText);
-      return false;
-    }
-    var data=await res.json();
-    console.log("Upstash save successful:",data);
-    return true;
-  }catch(e){
-    console.error("Could not save to Upstash:",e);
-    return false;
-  }
-}
 function getSections(){try{var s=localStorage.getItem("kb_sections");if(s){var p=JSON.parse(s);if(Array.isArray(p)&&p.length>0)return p;}}catch(e){}return DEFAULT_SECTIONS.slice();}
 function saveSections(s){localStorage.setItem("kb_sections",JSON.stringify(s));}
 function getTagMap(){try{var s=localStorage.getItem("kb_tagmap");if(s){var p=JSON.parse(s);if(p&&typeof p==="object")return p;}}catch(e){}var r={};for(var k in DEFAULT_TAG_MAP)r[k]=DEFAULT_TAG_MAP[k];return r;}
@@ -494,77 +447,90 @@ function copyBlock(el){
   });
 }
 
-// ── Publish to Upstash (live for all users) ──
+// Publish to Upstash (live for all users)
 async function publishChanges(){
   var btn=document.getElementById("publishBtn");
+  if(!btn) return alert("Publish button not found");
+  
   btn.disabled=true;
   btn.textContent="Saving...";
+  
   try{
-    var pages=getPages();
-    var success=await savePagesToUpstash(pages);
-    if(success){
-      // Also save to localStorage as backup
-      savePages(pages);
-      btn.textContent="Published!";
-      setTimeout(function(){btn.textContent="Publish";btn.disabled=false;},2000);
-    }else{
-      throw new Error("Failed to save to Upstash");
+    if(!window.UPSTASH_REST_URL || !window.UPSTASH_REST_TOKEN){
+      throw new Error("Upstash credentials not loaded. Refresh page and try again.");
     }
+    
+    var pages=getPages();
+    var url=window.UPSTASH_REST_URL+"/set/convex_pages";
+    var pageStr=JSON.stringify(pages);
+    
+    var res=await fetch(url,{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN,"Content-Type":"application/json"},
+      body:JSON.stringify(pageStr)
+    });
+    
+    if(!res.ok){
+      var errText=await res.text();
+      throw new Error("Upstash error: "+res.status+" - "+errText);
+    }
+    
+    // Also save to localStorage as backup
+    localStorage.setItem("kb_pages", JSON.stringify(pages));
+    
+    console.log("Published successfully!");
+    btn.textContent="Published!";
+    setTimeout(function(){btn.textContent="Publish";btn.disabled=false;},2000);
   }catch(e){
+    console.error("Publish error:", e);
     alert("Publish failed: "+e.message);
     btn.textContent="Publish";
     btn.disabled=false;
   }
 }
 
-// ── Export as HTML (manual backup) ──
-function exportPages(){
-  var pJson=JSON.stringify(getPages());
-  var sJson=JSON.stringify(getSections());
-  var tJson=JSON.stringify(getTagMap());
-  var currentHtml=document.documentElement.outerHTML;
-  var updated=currentHtml
-    .replace(/var DEFAULT_PAGES=JSON\.parse\(.*?\);/,"var DEFAULT_PAGES=JSON.parse("+JSON.stringify(pJson)+");")
-    .replace(/var DEFAULT_SECTIONS=\[.*?\];/,"var DEFAULT_SECTIONS="+sJson+";")
-    .replace(/var DEFAULT_TAG_MAP=\{.*?\};/,"var DEFAULT_TAG_MAP="+tJson+";");
-  var blob=new Blob(["<!DOCTYPE html>\n"+updated],{type:"text/html"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="index.html";
-  a.click();
-  URL.revokeObjectURL(a.href);
-  setTimeout(function(){alert("Downloaded! Manual backup only.\n\nUpstash auto-saves all changes instantly.");},500);
-}
+// Initialize Upstash and load pages on startup
+(async function initUpstash(){
+  try{
+    // Get Upstash credentials from /api/env
+    var envRes=await fetch("/api/env");
+    if(envRes.ok){
+      var env=await envRes.json();
+      window.UPSTASH_REST_URL=env.UPSTASH_REST_URL || env.KV_REST_API_URL;
+      window.UPSTASH_REST_TOKEN=env.UPSTASH_REST_TOKEN || env.KV_REST_API_TOKEN;
+      console.log("Upstash initialized");
+      
+      // Try to load from Upstash
+      if(window.UPSTASH_REST_URL && window.UPSTASH_REST_TOKEN){
+        var url=window.UPSTASH_REST_URL+"/get/convex_pages";
+        var kvRes=await fetch(url,{
+          method:"GET",
+          headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN}
+        });
+        if(kvRes.ok){
+          var kvData=await kvRes.json();
+          if(kvData.result){
+            var pages=JSON.parse(kvData.result);
+            if(Array.isArray(pages)){
+              console.log("Loaded "+pages.length+" pages from Upstash");
+              localStorage.setItem("kb_pages", JSON.stringify(pages));
+            }
+          }
+        }
+      }
+    }
+  }catch(e){
+    console.warn("Upstash init failed (will use defaults):", e);
+  }
+})();
 
-document.addEventListener("DOMContentLoaded",async function(){
+document.addEventListener("DOMContentLoaded",function(){
   homeGrid=document.getElementById("homeGrid");
   pageView=document.getElementById("pageView");
   searchInput=document.getElementById("searchInput");
   catTabs=document.getElementById("catTabs");
   editOverlay=document.getElementById("editOverlay");
   editModal=document.getElementById("editModal");
-  
-  // ── Initialize Upstash from environment variables ──
-  // In browser, we fetch these from a server endpoint that injects them
-  try{
-    var envRes=await fetch("/api/env");
-    if(envRes.ok){
-      var env=await envRes.json();
-      window.UPSTASH_REST_URL=env.UPSTASH_REST_URL||env.KV_REST_API_URL;
-      window.UPSTASH_REST_TOKEN=env.UPSTASH_REST_TOKEN||env.KV_REST_API_TOKEN;
-    }
-  }catch(e){
-    console.warn("Could not load Upstash env vars from server");
-  }
-  
-  // ── Load pages from Upstash ──
-  if(window.UPSTASH_REST_URL && window.UPSTASH_REST_TOKEN){
-    var upstashPages=await loadPagesFromUpstash();
-    if(upstashPages){
-      savePages(upstashPages);
-    }
-  }
-  
   document.getElementById("mgrBtn").onclick=requestMgr;
   searchInput.addEventListener("input",function(){if(document.body.classList.contains("showing-page"))goHome();renderHome(searchInput.value,activeCat);});
   catTabs.addEventListener("click",function(e){
