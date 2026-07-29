@@ -255,6 +255,38 @@ var sectionColors={"Training":"#16A34A","Tools & Systems":"#2563EB","After-Sales
 function loadPages(){try{var s=localStorage.getItem("kb_pages");if(s)return JSON.parse(s);}catch(e){}return null;}
 function savePages(p){localStorage.setItem("kb_pages",JSON.stringify(p));}
 function getPages(){return loadPages()||DEFAULT_PAGES.slice();}
+
+// ── Upstash Redis functions ──
+async function loadPagesFromUpstash(){
+  try{
+    var res=await fetch(window.UPSTASH_REST_URL+"/get/convex_pages",{
+      headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN}
+    });
+    if(!res.ok)return null;
+    var data=await res.json();
+    if(data.result){
+      var pages=JSON.parse(data.result);
+      if(Array.isArray(pages))return pages;
+    }
+  }catch(e){
+    console.warn("Could not load from Upstash:",e);
+  }
+  return null;
+}
+
+async function savePagesToUpstash(pages){
+  try{
+    var res=await fetch(window.UPSTASH_REST_URL+"/set/convex_pages",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN,"Content-Type":"application/json"},
+      body:JSON.stringify({value:JSON.stringify(pages)})
+    });
+    return res.ok;
+  }catch(e){
+    console.error("Could not save to Upstash:",e);
+    return false;
+  }
+}
 function getSections(){try{var s=localStorage.getItem("kb_sections");if(s){var p=JSON.parse(s);if(Array.isArray(p)&&p.length>0)return p;}}catch(e){}return DEFAULT_SECTIONS.slice();}
 function saveSections(s){localStorage.setItem("kb_sections",JSON.stringify(s));}
 function getTagMap(){try{var s=localStorage.getItem("kb_tagmap");if(s){var p=JSON.parse(s);if(p&&typeof p==="object")return p;}}catch(e){}var r={};for(var k in DEFAULT_TAG_MAP)r[k]=DEFAULT_TAG_MAP[k];return r;}
@@ -447,7 +479,28 @@ function copyBlock(el){
   });
 }
 
-function publishChanges(){
+// ── Publish to Upstash (live for all users) ──
+async function publishChanges(){
+  var btn=document.getElementById("publishBtn");
+  btn.disabled=true;
+  btn.textContent="Saving...";
+  try{
+    var success=await savePagesToUpstash(getPages());
+    if(success){
+      btn.textContent="Published!";
+      setTimeout(function(){btn.textContent="Publish";btn.disabled=false;},2000);
+    }else{
+      throw new Error("Failed to save to Upstash");
+    }
+  }catch(e){
+    alert("Publish failed: "+e.message);
+    btn.textContent="Publish";
+    btn.disabled=false;
+  }
+}
+
+// ── Export as HTML (manual backup) ──
+function exportPages(){
   var pJson=JSON.stringify(getPages());
   var sJson=JSON.stringify(getSections());
   var tJson=JSON.stringify(getTagMap());
@@ -462,16 +515,38 @@ function publishChanges(){
   a.download="index.html";
   a.click();
   URL.revokeObjectURL(a.href);
-  setTimeout(function(){alert("Downloaded! Upload this index.html to your GitHub repo.\n\nGitHub → index.html → pencil icon → drag & drop new file → Commit changes");},500);
+  setTimeout(function(){alert("Downloaded! Manual backup only.\n\nUpstash auto-saves all changes instantly.");},500);
 }
 
-document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("DOMContentLoaded",async function(){
   homeGrid=document.getElementById("homeGrid");
   pageView=document.getElementById("pageView");
   searchInput=document.getElementById("searchInput");
   catTabs=document.getElementById("catTabs");
   editOverlay=document.getElementById("editOverlay");
   editModal=document.getElementById("editModal");
+  
+  // ── Initialize Upstash from environment variables ──
+  // In browser, we fetch these from a server endpoint that injects them
+  try{
+    var envRes=await fetch("/api/env");
+    if(envRes.ok){
+      var env=await envRes.json();
+      window.UPSTASH_REST_URL=env.UPSTASH_REST_URL||env.KV_REST_API_URL;
+      window.UPSTASH_REST_TOKEN=env.UPSTASH_REST_TOKEN||env.KV_REST_API_TOKEN;
+    }
+  }catch(e){
+    console.warn("Could not load Upstash env vars from server");
+  }
+  
+  // ── Load pages from Upstash ──
+  if(window.UPSTASH_REST_URL && window.UPSTASH_REST_TOKEN){
+    var upstashPages=await loadPagesFromUpstash();
+    if(upstashPages){
+      savePages(upstashPages);
+    }
+  }
+  
   document.getElementById("mgrBtn").onclick=requestMgr;
   searchInput.addEventListener("input",function(){if(document.body.classList.contains("showing-page"))goHome();renderHome(searchInput.value,activeCat);});
   catTabs.addEventListener("click",function(e){
