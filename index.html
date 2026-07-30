@@ -591,66 +591,8 @@ document.addEventListener("DOMContentLoaded",async function(){
   document.getElementById("pwOverlay").addEventListener("click",function(e){if(e.target.id==="pwOverlay")e.target.classList.remove("show");});
   renderTabs();renderHome();
 });
-</script>
 
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onChildChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
-  
-  const firebaseConfig = {
-    apiKey: "AIzaSyAy05kRBsdj2pSRSFLMXae2hy0B-hqBE_E",
-    authDomain: "convex-handbook.firebaseapp.com",
-    databaseURL: "https://convex-handbook-default-rtdb.firebaseio.com",
-    projectId: "convex-handbook",
-    storageBucket: "convex-handbook.firebasestorage.app",
-    messagingSenderId: "544821800996",
-    appId: "1:544821800996:web:4eff7c4148d0f2914c28b1",
-    measurementId: "G-2TPYZEJLTM"
-  };
-  
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app);
-  
-  // Save pages to Firebase
-  window.saveToFirebase = async function(pages) {
-    try {
-      await set(ref(database, 'pages'), pages);
-      console.log('✓ Pages saved to Firebase');
-    } catch(error) {
-      console.error('✗ Error saving to Firebase:', error);
-    }
-  };
-  
-  // Load pages from Firebase
-  window.loadFromFirebase = async function() {
-    try {
-      const snapshot = await get(ref(database, 'pages'));
-      if(snapshot.exists()) {
-        console.log('✓ Pages loaded from Firebase');
-        return snapshot.val();
-      }
-    } catch(error) {
-      console.error('✗ Error loading from Firebase:', error);
-    }
-    return null;
-  };
-  
-  // Real-time listener for updates
-  onChildChanged(ref(database, 'pages'), snapshot => {
-    console.log('⚡ Pages updated from Firebase - refreshing...');
-    localStorage.setItem('kb_pages', JSON.stringify(snapshot.val()));
-    renderHome();
-  });
-  
-  // Load from Firebase on page load
-  (async () => {
-    const fbPages = await window.loadFromFirebase();
-    if(fbPages) {
-      localStorage.setItem('kb_pages', JSON.stringify(fbPages));
-    }
-  })();
-</script>
 
+</script>
 </body>
 </html>
