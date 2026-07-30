@@ -484,13 +484,21 @@ document.addEventListener("DOMContentLoaded",async function(){
       var kvRes=await fetch(window.UPSTASH_REST_URL+"/get/convex_pages",{headers:{"Authorization":"Bearer "+window.UPSTASH_REST_TOKEN}});
       if(kvRes.ok){
         var kvData=await kvRes.json();
+        console.log("KV result length:",kvData.result?kvData.result.length:0);
         if(kvData.result){
-          var pages=JSON.parse(kvData.result);
-          if(Array.isArray(pages)){
-            console.log("Loaded "+pages.length+" pages from Upstash");
-            localStorage.setItem("kb_pages",JSON.stringify(pages));
+          try{
+            var pages=JSON.parse(kvData.result);
+            if(Array.isArray(pages)){
+              console.log("Parsed "+pages.length+" pages, saving to localStorage");
+              localStorage.setItem("kb_pages",JSON.stringify(pages));
+              console.log("localStorage updated!");
+            }
+          }catch(parseErr){
+            console.error("Parse error:",parseErr);
           }
         }
+      }else{
+        console.warn("KV fetch failed:",kvRes.status);
       }
     }
   }catch(e){
