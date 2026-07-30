@@ -575,11 +575,15 @@ document.addEventListener("DOMContentLoaded",async function(){
   });
   editOverlay.addEventListener("click",function(e){if(e.target===editOverlay)closeEditor();});
   document.getElementById("pwOverlay").addEventListener("click",function(e){if(e.target.id==="pwOverlay")e.target.classList.remove("show");});
-  renderTabs();renderHome();
+  
+  // Wait for Firebase to load before rendering
+  setTimeout(function() {
+    renderTabs();renderHome();
+  }, 500);
 });
 </script>
 
-<!-- Firebase SDK -->
+<!-- Firebase SDK - Loads early -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
   import { getDatabase, ref, set, get, onChildChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
@@ -598,42 +602,40 @@ document.addEventListener("DOMContentLoaded",async function(){
   const app = initializeApp(firebaseConfig);
   const database = getDatabase(app);
   
-  // Save pages to Firebase
   window.saveToFirebase = async function(pages) {
     try {
       await set(ref(database, 'pages'), pages);
-      console.log('✓ Pages saved to Firebase');
+      console.log('✓ Saved to Firebase');
     } catch(error) {
-      console.error('✗ Error saving to Firebase:', error);
+      console.error('✗ Error:', error);
     }
   };
   
-  // Load pages from Firebase
   window.loadFromFirebase = async function() {
     try {
       const snapshot = await get(ref(database, 'pages'));
       if(snapshot.exists()) {
-        console.log('✓ Pages loaded from Firebase');
+        console.log('✓ Loaded from Firebase');
         return snapshot.val();
       }
     } catch(error) {
-      console.error('✗ Error loading from Firebase:', error);
+      console.error('✗ Error:', error);
     }
     return null;
   };
   
-  // Real-time listener for updates
   onChildChanged(ref(database, 'pages'), snapshot => {
-    console.log('⚡ Pages updated from Firebase - refreshing...');
+    console.log('⚡ Firebase update');
     localStorage.setItem('kb_pages', JSON.stringify(snapshot.val()));
-    renderHome();
+    if(window.renderHome) renderHome();
   });
   
-  // Load from Firebase on page load
+  // Load Firebase immediately
   (async () => {
     const fbPages = await window.loadFromFirebase();
     if(fbPages) {
       localStorage.setItem('kb_pages', JSON.stringify(fbPages));
+      console.log('✓ Firebase data ready');
     }
   })();
 </script>
