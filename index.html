@@ -239,6 +239,17 @@ a:hover{color:var(--gold);}
 
 
 <script>
+// Load pages from api/pages.js 
+var pages = [];
+fetch('/api/pages')
+  .then(response => response.json()) 
+  .then(data => {
+    pages = data;
+    console.log('Loaded '+pages.length+' pages from server');
+    renderTabs();
+    renderHome();
+  });
+
 var CONTENT_VERSION="2.2.3";
 try{if(localStorage.getItem("kb_version")!==CONTENT_VERSION){localStorage.removeItem("kb_sections");localStorage.removeItem("kb_tagmap");localStorage.setItem("kb_version",CONTENT_VERSION);}}catch(e){}
 
@@ -480,22 +491,36 @@ function copyBlock(el){
 }
 
 // ── Publish to Upstash (live for all users) ──
-async function publishChanges(){
-  var btn=document.getElementById("publishBtn");
-  btn.disabled=true;
-  btn.textContent="Saving...";
-  try{
-    var success=await savePagesToUpstash(getPages());
-    if(success){
-      btn.textContent="Published!";
-      setTimeout(function(){btn.textContent="Publish";btn.disabled=false;},2000);
-    }else{
-      throw new Error("Failed to save to Upstash");
+async function publishChanges() {
+  var btn = document.getElementById("publishBtn");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  
+  try {
+    const response = await fetch('/api/pages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        password: process.env.ADMIN_PASSWORD,
+        pages: getPages()
+      })
+    });
+    
+    if (response.ok) {
+      btn.textContent = "Published!";
+      setTimeout(() => {
+        btn.textContent = "Publish";
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      throw new Error("Failed to save pages");
     }
-  }catch(e){
-    alert("Publish failed: "+e.message);
-    btn.textContent="Publish";
-    btn.disabled=false;
+  } catch (e) {
+    alert("Publish failed: " + e.message);
+    btn.textContent = "Publish";
+    btn.disabled = false;
   }
 }
 
