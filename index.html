@@ -418,7 +418,10 @@ function addNewTab(){
   sections.push(name);tm[name]=tag;
   saveSections(sections);saveTagMap(tm);
   tagClass[tag]="tag-training";
-  renderTabs();renderHome(searchInput.value,activeCat);
+  activeCat=tag;
+  renderTabs();
+  catTabs.querySelectorAll(".cat-tab").forEach(function(t){t.classList.toggle("active",t.dataset.filter===tag);});
+  renderHome(searchInput.value,tag);
 }
 
 function deleteTab(name){
@@ -438,7 +441,8 @@ function openEditor(id){
   var pages=getPages();
   var p=id?pages.find(function(x){return x.id===id;}):null;
   var sects="";
-  getSections().forEach(function(s){sects+='<option value="'+s+'" '+(p&&p.section===s?'selected':'')+'>'+s+'</option>';});
+  var activeSect=getSections().find(function(s){var tm=getTagMap();return (tm[s]||s.toLowerCase().replace(/[^a-z0-9]/g,""))===activeCat;})||getSections()[0]||"";
+  getSections().forEach(function(s){sects+='<option value="'+s+'" '+((p?p.section===s:s===activeSect)?'selected':'')+'>'+s+'</option>';});
   editModal.innerHTML='<h2>'+(p?'Edit Page':'New Page')+'</h2>'+
     '<label>Title</label><input id="ed-title" value="'+(p?p.title.replace(/"/g,'&quot;'):'')+'">'+
     '<label>Icon</label><input id="ed-icon" value="'+(p?p.icon:'&#128196;')+'" maxlength="4">'+
