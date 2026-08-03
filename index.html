@@ -326,7 +326,7 @@ function renderHome(filter,cat){
   var filtered=pages;
   if(ft)filtered=filtered.filter(function(p){return p.title.toLowerCase().indexOf(ft)>=0||p.desc.toLowerCase().indexOf(ft)>=0||p.body.toLowerCase().indexOf(ft)>=0;});
   if(cat!=="all"){filtered=filtered.filter(function(p){var ptag=p.tag||(p.section||"").toLowerCase().replace(/[^a-z0-9]/g,"");return ptag===cat;});}
-  if(!filtered.length){homeGrid.innerHTML='<div class="no-results">No results found.</div>';return;}
+  if(!filtered.length){homeGrid.innerHTML='<div class="no-results">No results found.</div>'+(adminMode?'<div class="add-card" onclick="openEditor(null)">+ Add New Page</div>':'');return;}
   var h="";
   getSections().forEach(function(sec){
     var sp=filtered.filter(function(p){return p.section===sec;});
@@ -501,7 +501,12 @@ async function publishChanges() {
   btn.textContent = "Saving...";
   
   try {
-    await window.saveToFirebase(getPages());
+    var data = {
+      pages: getPages(),
+      sections: getSections(),
+      tagMap: getTagMap()
+    };
+    await window.saveToFirebase(data);
     btn.textContent = "Published!";
     setTimeout(() => {
       btn.textContent = "✓ Publish";
@@ -590,7 +595,7 @@ document.addEventListener("DOMContentLoaded",async function(){
 <!-- Firebase SDK - Loads early -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onChildChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
   
   const firebaseConfig = {
     apiKey: "AIzaSyAy05kRBsdj2pSRSFLMXae2hy0B-hqBE_E",
@@ -628,17 +633,24 @@ document.addEventListener("DOMContentLoaded",async function(){
     return null;
   };
   
-  onChildChanged(ref(database, 'pages'), snapshot => {
-    console.log('⚡ Firebase update');
-    localStorage.setItem('kb_pages', JSON.stringify(snapshot.val()));
-    if(window.renderHome) renderHome();
+  onValue(ref(database, 'pages'), snapshot => {
+    const data = snapshot.val();
+    if(data) {
+      if(data.pages) localStorage.setItem('kb_pages', JSON.stringify(data.pages));
+      if(data.sections) localStorage.setItem('kb_sections', JSON.stringify(data.sections));
+      if(data.tagMap) localStorage.setItem('kb_tagmap', JSON.stringify(data.tagMap));
+      console.log('⚡ Firebase update received');
+      if(window.renderTabs) { renderTabs(); renderHome(); }
+    }
   });
   
   // Load Firebase immediately
   (async () => {
-    const fbPages = await window.loadFromFirebase();
-    if(fbPages) {
-      localStorage.setItem('kb_pages', JSON.stringify(fbPages));
+    const fbData = await window.loadFromFirebase();
+    if(fbData) {
+      if(fbData.pages) localStorage.setItem('kb_pages', JSON.stringify(fbData.pages));
+      if(fbData.sections) localStorage.setItem('kb_sections', JSON.stringify(fbData.sections));
+      if(fbData.tagMap) localStorage.setItem('kb_tagmap', JSON.stringify(fbData.tagMap));
       console.log('✓ Firebase data ready');
     }
   })();
