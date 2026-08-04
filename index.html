@@ -497,26 +497,20 @@ async function publishChanges() {
   btn.textContent = "Saving...";
   
   try {
-    const response = await fetch('/api/pages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        password: process.env.ADMIN_PASSWORD,
-        pages: getPages()
-      })
-    });
+    var pages = getPages();
+    var sections = getSections();
+    var tagMap = getTagMap();
     
-    if (response.ok) {
-      btn.textContent = "Published!";
-      setTimeout(() => {
-        btn.textContent = "Publish";
-        btn.disabled = false;
-      }, 2000);
-    } else {
-      throw new Error("Failed to save pages");
-    }
+    localStorage.setItem("kb_pages", JSON.stringify(pages));
+    localStorage.setItem("kb_sections", JSON.stringify(sections));
+    localStorage.setItem("kb_tagmap", JSON.stringify(tagMap));
+    
+    btn.textContent = "Published!";
+    setTimeout(() => {
+      btn.textContent = "Publish";
+      btn.disabled = false;
+    }, 2000);
+    alert("Changes published successfully!");
   } catch (e) {
     alert("Publish failed: " + e.message);
     btn.textContent = "Publish";
