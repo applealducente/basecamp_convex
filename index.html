@@ -263,9 +263,9 @@ var DEFAULT_TAG_MAP={"Training":"training","Tools & Systems":"tools","After-Sale
 var tagClass={"training":"tag-training","tools":"tag-tools","aftersales":"tag-aftersales","compliance":"tag-compliance","templates":"tag-templates","support":"tag-support","websites":"tag-tools"};
 var sectionColors={"Training":"#16A34A","Tools & Systems":"#2563EB","After-Sales":"#EA580C","Compliance":"#DC2626","Templates":"#D97706","Customer Support":"#7C3AED","Websites":"#0891B2"};
 
-function loadPages(){try{var s=localStorage.getItem("kb_pages");if(s)return JSON.parse(s);}catch(e){}return null;}
-function savePages(p){localStorage.setItem("kb_pages",JSON.stringify(p));}
-function getPages(){return loadPages()||DEFAULT_PAGES.slice();}
+function loadPages(){try{var s=localStorage.getItem("kb_pages");if(s){var p=JSON.parse(s);if(p&&p.length>0)return p;}}catch(e){}return null;}
+function savePages(p){if(p&&p.length>0)localStorage.setItem("kb_pages",JSON.stringify(p));}
+function getPages(){var p=loadPages();if(!p||p.length===0){p=DEFAULT_PAGES.slice();savePages(p);}return p;}
 
 // ── Upstash Redis functions ──
 async function loadPagesFromUpstash(){
