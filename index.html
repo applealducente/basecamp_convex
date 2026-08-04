@@ -326,7 +326,7 @@ function renderHome(filter,cat){
   var filtered=pages;
   if(ft)filtered=filtered.filter(function(p){return p.title.toLowerCase().indexOf(ft)>=0||p.desc.toLowerCase().indexOf(ft)>=0||p.body.toLowerCase().indexOf(ft)>=0;});
   if(cat!=="all"){filtered=filtered.filter(function(p){var ptag=p.tag||(p.section||"").toLowerCase().replace(/[^a-z0-9]/g,"");return ptag===cat;});}
-  if(!filtered.length){homeGrid.innerHTML='<div class="no-results">No results found.</div>';return;}
+  if(!filtered.length&&cat==="all"){homeGrid.innerHTML='<div class="no-results">No results found.</div><div class="add-card" onclick="openEditor(null)">+ Add New Page</div>';return;}
   var h="";
   getSections().forEach(function(sec){
     var sp=filtered.filter(function(p){return p.section===sec;});
