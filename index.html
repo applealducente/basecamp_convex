@@ -503,54 +503,41 @@ function clearCache() {
 async function publishChanges() {
   var btn = document.getElementById("publishBtn");
   btn.disabled = true;
-  btn.textContent = "Saving...";
+  btn.textContent = "Publishing...";
   
   try {
     var pages = getPages();
     var sections = getSections();
     var tagMap = getTagMap();
     
-    // Save to localStorage first
-    localStorage.setItem("kb_pages", JSON.stringify(pages));
-    localStorage.setItem("kb_sections", JSON.stringify(sections));
-    localStorage.setItem("kb_tagmap", JSON.stringify(tagMap));
-    
-    // Save to Firebase
     const dbUrl = "https://convex-handbook-default-rtdb.firebaseio.com";
     
-    // Save pages to Firebase
-    const pagesResponse = await fetch(dbUrl + "/pages.json", {
+    // Save to Firebase Realtime Database
+    const pagesRes = await fetch(dbUrl + "/pages.json", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pages)
     });
     
-    if (!pagesResponse.ok) throw new Error("Failed to save pages to Firebase");
-    
-    // Save sections to Firebase
-    const sectionsResponse = await fetch(dbUrl + "/sections.json", {
+    const sectionsRes = await fetch(dbUrl + "/sections.json", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sections)
     });
     
-    if (!sectionsResponse.ok) throw new Error("Failed to save sections to Firebase");
-    
-    // Save tagMap to Firebase
-    const tagMapResponse = await fetch(dbUrl + "/tagMap.json", {
+    const tagMapRes = await fetch(dbUrl + "/tagMap.json", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(tagMap)
     });
     
-    if (!tagMapResponse.ok) throw new Error("Failed to save tagMap to Firebase");
-    
-    btn.textContent = "Published!";
-    setTimeout(() => {
-      btn.textContent = "Publish";
-      btn.disabled = false;
-    }, 2000);
-    alert("Changes published to Firebase successfully!");
+    if (pagesRes.ok && sectionsRes.ok && tagMapRes.ok) {
+      btn.textContent = "Published!";
+      setTimeout(() => {
+        btn.textContent = "Publish";
+        btn.disabled = false;
+      }, 2000);
+      alert("Published to Firebase successfully!");
+    } else {
+      throw new Error("Firebase save failed");
+    }
   } catch (e) {
     alert("Publish failed: " + e.message);
     btn.textContent = "Publish";
