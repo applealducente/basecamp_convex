@@ -501,16 +501,47 @@ async function publishChanges() {
     var sections = getSections();
     var tagMap = getTagMap();
     
+    // Save to localStorage first
     localStorage.setItem("kb_pages", JSON.stringify(pages));
     localStorage.setItem("kb_sections", JSON.stringify(sections));
     localStorage.setItem("kb_tagmap", JSON.stringify(tagMap));
+    
+    // Save to Firebase
+    const dbUrl = "https://convex-handbook-default-rtdb.firebaseio.com";
+    
+    // Save pages to Firebase
+    const pagesResponse = await fetch(dbUrl + "/pages.json", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pages)
+    });
+    
+    if (!pagesResponse.ok) throw new Error("Failed to save pages to Firebase");
+    
+    // Save sections to Firebase
+    const sectionsResponse = await fetch(dbUrl + "/sections.json", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sections)
+    });
+    
+    if (!sectionsResponse.ok) throw new Error("Failed to save sections to Firebase");
+    
+    // Save tagMap to Firebase
+    const tagMapResponse = await fetch(dbUrl + "/tagMap.json", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tagMap)
+    });
+    
+    if (!tagMapResponse.ok) throw new Error("Failed to save tagMap to Firebase");
     
     btn.textContent = "Published!";
     setTimeout(() => {
       btn.textContent = "Publish";
       btn.disabled = false;
     }, 2000);
-    alert("Changes published successfully!");
+    alert("Changes published to Firebase successfully!");
   } catch (e) {
     alert("Publish failed: " + e.message);
     btn.textContent = "Publish";
