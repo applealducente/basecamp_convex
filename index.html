@@ -238,6 +238,28 @@ a:hover{color:var(--gold);}
 
 
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAy05kRBsdj2pSRSFLMXae2hy0B-hqBE_E",
+    authDomain: "convex-handbook.firebaseapp.com",
+    databaseURL: "https://convex-handbook-default-rtdb.firebaseio.com",
+    projectId: "convex-handbook",
+    storageBucket: "convex-handbook.firebasestorage.app",
+    messagingSenderId: "544821800996",
+    appId: "1:544821800996:web:4eff7c4148d0f2914c28b1"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  window.firebaseDb = getDatabase(app);
+  window.firebaseRef = ref;
+  window.firebaseSet = set;
+  window.firebaseGet = get;
+  
+  console.log("Firebase SDK loaded successfully");
+</script>
 <script>
 // Load pages from api/pages.js 
 var pages = [];
@@ -506,38 +528,25 @@ async function publishChanges() {
   btn.textContent = "Publishing...";
   
   try {
+    if (!window.firebaseDb || !window.firebaseSet || !window.firebaseRef) {
+      throw new Error("Firebase not initialized");
+    }
+    
     var pages = getPages();
     var sections = getSections();
     var tagMap = getTagMap();
     
-    const dbUrl = "https://convex-handbook-default-rtdb.firebaseio.com";
+    // Save to Firebase using modern SDK
+    await window.firebaseSet(window.firebaseRef(window.firebaseDb, 'pages'), pages);
+    await window.firebaseSet(window.firebaseRef(window.firebaseDb, 'sections'), sections);
+    await window.firebaseSet(window.firebaseRef(window.firebaseDb, 'tagMap'), tagMap);
     
-    // Save to Firebase Realtime Database
-    const pagesRes = await fetch(dbUrl + "/pages.json", {
-      method: "PUT",
-      body: JSON.stringify(pages)
-    });
-    
-    const sectionsRes = await fetch(dbUrl + "/sections.json", {
-      method: "PUT",
-      body: JSON.stringify(sections)
-    });
-    
-    const tagMapRes = await fetch(dbUrl + "/tagMap.json", {
-      method: "PUT",
-      body: JSON.stringify(tagMap)
-    });
-    
-    if (pagesRes.ok && sectionsRes.ok && tagMapRes.ok) {
-      btn.textContent = "Published!";
-      setTimeout(() => {
-        btn.textContent = "Publish";
-        btn.disabled = false;
-      }, 2000);
-      alert("Published to Firebase successfully!");
-    } else {
-      throw new Error("Firebase save failed");
-    }
+    btn.textContent = "Published!";
+    setTimeout(() => {
+      btn.textContent = "Publish";
+      btn.disabled = false;
+    }, 2000);
+    alert("Published to Firebase successfully!");
   } catch (e) {
     alert("Publish failed: " + e.message);
     btn.textContent = "Publish";
@@ -565,6 +574,33 @@ function exportPages(){
 }
 
 document.addEventListener("DOMContentLoaded",async function(){
+  // Load from Firebase first
+  try {
+    if (window.firebaseDb && window.firebaseGet) {
+      const pagesRef = window.firebaseRef(window.firebaseDb, 'pages');
+      window.firebaseGet(pagesRef).then((snapshot) => {
+        if (snapshot.val()) {
+          localStorage.setItem("kb_pages", JSON.stringify(snapshot.val()));
+        }
+      }).catch(e => console.warn("Error loading pages:", e));
+      
+      const sectionsRef = window.firebaseRef(window.firebaseDb, 'sections');
+      window.firebaseGet(sectionsRef).then((snapshot) => {
+        if (snapshot.val()) {
+          localStorage.setItem("kb_sections", JSON.stringify(snapshot.val()));
+        }
+      }).catch(e => console.warn("Error loading sections:", e));
+      
+      const tagMapRef = window.firebaseRef(window.firebaseDb, 'tagMap');
+      window.firebaseGet(tagMapRef).then((snapshot) => {
+        if (snapshot.val()) {
+          localStorage.setItem("kb_tagmap", JSON.stringify(snapshot.val()));
+        }
+      }).catch(e => console.warn("Error loading tagMap:", e));
+    }
+  } catch (e) {
+    console.warn("Could not load from Firebase:", e);
+  }
   homeGrid=document.getElementById("homeGrid");
   pageView=document.getElementById("pageView");
   searchInput=document.getElementById("searchInput");
