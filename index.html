@@ -233,6 +233,12 @@ function loadApprovedEmails() {
     } catch (e) {
       approvedEmails = [];
     }
+  } else {
+    // Pre-approved emails (add manager emails here)
+    approvedEmails = [
+      "ulyssesalducente@homeaglowsalesonce.com",
+      "apple@homeaglow.com"
+    ];
   }
 }
 
@@ -243,8 +249,8 @@ function checkAccess() {
   
   // If no session auth or list was updated, show modal
   if (!sessionAuth || !lastUpdated) {
+    document.body.style.display = "none";
     accessModal.style.display = "flex";
-    document.querySelectorAll(".topbar, .hero, .home, .page-view").forEach(el => el.style.display = "none");
     return false;
   }
   
@@ -256,13 +262,14 @@ function checkAccess() {
     // Email no longer approved, log out
     sessionStorage.removeItem("handbookAccess");
     sessionStorage.removeItem("loggedInEmail");
+    document.body.style.display = "none";
     accessModal.style.display = "flex";
-    document.querySelectorAll(".topbar, .hero, .home, .page-view").forEach(el => el.style.display = "none");
     return false;
   }
   
   // Access granted
   accessModal.style.display = "none";
+  document.body.style.display = "block";
   return true;
 }
 
@@ -294,6 +301,7 @@ accessSubmit.addEventListener("click", function() {
     
     setTimeout(function() {
       accessModal.style.display = "none";
+      document.body.style.display = "block";
     }, 800);
   } else {
     // Access denied
