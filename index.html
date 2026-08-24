@@ -199,139 +199,78 @@ a:hover{color:var(--gold);}
 </style>
 </head>
 <body>
-<!-- ACCESS CONTROL MODAL -->
-<div id="accessModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #1E3A5F 0%, #2d5a8c 100%);display:flex;align-items:center;justify-content:center;z-index:9999;font-family:'DM Sans',system-ui,sans-serif;">
-  <div style="background:#fff;padding:40px;border-radius:14px;text-align:center;max-width:380px;box-shadow:0 20px 60px rgba(30,58,95,0.3);">
-    <div style="margin-bottom:20px;font-size:48px;">📧</div>
-    <h2 style="font-size:22px;font-weight:700;color:#1B1B1F;margin-bottom:8px;">Agent Handbook Access</h2>
-    <p style="font-size:13.5px;color:#71717A;margin-bottom:24px;line-height:1.6;">Enter your email to access the handbook.</p>
-    
-    <input type="email" id="accessEmail" placeholder="your.email@homeaglow.com" style="width:100%;padding:10px 14px;border:1.5px solid #DDDCD7;border-radius:8px;font-size:13.5px;font-family:inherit;margin-bottom:14px;outline:none;" />
-    <button id="accessSubmit" style="width:100%;padding:10px;background:#1E3A5F;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;">Check Access</button>
-    
-    <div id="accessResult" style="margin-top:16px;padding:12px;border-radius:8px;display:none;font-size:12.5px;line-height:1.6;">
-      <p id="resultText"></p>
-    </div>
+<!-- SIMPLE ACCESS CONTROL -->
+<div id="accessModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(30,58,95,0.95);display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="background:#fff;padding:40px;border-radius:14px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Handbook Access</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:20px;">Enter your email</p>
+    <input type="email" id="accessEmail" placeholder="your@email.com" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;font-size:13px;" />
+    <button id="accessSubmit" style="width:100%;padding:10px;background:#1E3A5F;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Check Access</button>
+    <p id="accessMsg" style="margin-top:12px;font-size:12px;color:#999;display:none;"></p>
   </div>
 </div>
 
 <script>
-// Access control system
-const accessModal = document.getElementById("accessModal");
-const accessEmail = document.getElementById("accessEmail");
-const accessSubmit = document.getElementById("accessSubmit");
-const accessResult = document.getElementById("accessResult");
-const resultText = document.getElementById("resultText");
+const modal = document.getElementById("accessModal");
+const emailInput = document.getElementById("accessEmail");
+const submitBtn = document.getElementById("accessSubmit");
+const msg = document.getElementById("accessMsg");
 
-// Parse CSV from localStorage or default empty
-let approvedEmails = [];
-function loadApprovedEmails() {
-  const stored = localStorage.getItem("traineeApprovedList");
+let approvedList = [];
+
+function loadList() {
+  const stored = localStorage.getItem("approvedEmails");
   if (stored) {
-    try {
-      approvedEmails = JSON.parse(stored);
-    } catch (e) {
-      approvedEmails = [];
-    }
+    try { approvedList = JSON.parse(stored); }
+    catch(e) { approvedList = []; }
   } else {
-    // Pre-approved emails (add manager emails here)
-    approvedEmails = [
-      "ulyssesalducente@homeaglowsalesonce.com",
-      "apple@homeaglow.com"
-    ];
+    approvedList = ["ulyssesalducente@homeaglowsalesonce.com", "apple@homeaglow.com"];
   }
 }
 
-// Check if user is logged in
-function checkAccess() {
-  const lastUpdated = localStorage.getItem("accessListUpdated");
-  const sessionAuth = sessionStorage.getItem("handbookAccess");
+function checkAuth() {
+  const sess = sessionStorage.getItem("authed");
+  const email = sessionStorage.getItem("userEmail");
   
-  // If no session auth or list was updated, show modal
-  if (!sessionAuth || !lastUpdated) {
-    document.body.style.display = "none";
-    accessModal.style.display = "flex";
+  loadList();
+  
+  if (!sess || !approvedList.includes(email)) {
+    modal.style.display = "flex";
     return false;
   }
   
-  // Verify email is still in list
-  const loggedEmail = sessionStorage.getItem("loggedInEmail");
-  loadApprovedEmails();
-  
-  if (!approvedEmails.includes(loggedEmail)) {
-    // Email no longer approved, log out
-    sessionStorage.removeItem("handbookAccess");
-    sessionStorage.removeItem("loggedInEmail");
-    document.body.style.display = "none";
-    accessModal.style.display = "flex";
-    return false;
-  }
-  
-  // Access granted
-  accessModal.style.display = "none";
-  document.body.style.display = "block";
+  modal.style.display = "none";
   return true;
 }
 
-// Initialize
-loadApprovedEmails();
-if (!checkAccess()) {
-  accessEmail.focus();
-}
+loadList();
+checkAuth();
 
-// Handle access submission
-accessSubmit.addEventListener("click", function() {
-  const email = accessEmail.value.trim().toLowerCase();
+submitBtn.onclick = function() {
+  const email = emailInput.value.toLowerCase().trim();
+  if (!email) return;
   
-  if (!email) {
-    resultText.textContent = "❌ Please enter a valid email address.";
-    resultText.style.color = "#DC2626";
-    accessResult.style.display = "block";
-    return;
-  }
-  
-  // Check if email is approved
-  if (approvedEmails.includes(email)) {
-    // Grant access
-    sessionStorage.setItem("handbookAccess", "true");
-    sessionStorage.setItem("loggedInEmail", email);
-    resultText.textContent = "✓ Access granted! Loading handbook...";
-    resultText.style.color = "#16A34A";
-    accessResult.style.display = "block";
-    
-    setTimeout(function() {
-      accessModal.style.display = "none";
-      document.body.style.display = "block";
-    }, 800);
+  if (approvedList.includes(email)) {
+    sessionStorage.setItem("authed", "1");
+    sessionStorage.setItem("userEmail", email);
+    modal.style.display = "none";
   } else {
-    // Access denied
-    resultText.textContent = "❌ This email is not authorized to access the handbook. Contact your manager for access.";
-    resultText.style.color = "#DC2626";
-    accessResult.style.display = "block";
+    msg.style.display = "block";
+    msg.textContent = "❌ Not authorized. Contact your manager.";
+    msg.style.color = "#dc2626";
   }
-});
-
-accessEmail.addEventListener("keypress", function(e) {
-  if (e.key === "Enter") accessSubmit.click();
-});
-
-// Expose function to update approved list (for Manager Mode)
-window.updateApprovedEmails = function(emailArray) {
-  approvedEmails = emailArray;
-  localStorage.setItem("traineeApprovedList", JSON.stringify(emailArray));
-  localStorage.setItem("accessListUpdated", Date.now());
-  
-  // Auto logout everyone
-  sessionStorage.removeItem("handbookAccess");
-  sessionStorage.removeItem("loggedInEmail");
-  
-  // Force reload
-  location.reload();
 };
 
-// Export for Manager Mode
-window.getApprovedEmails = function() {
-  return approvedEmails;
+emailInput.onkeypress = function(e) {
+  if (e.key === "Enter") submitBtn.click();
+};
+
+window.updateAccessList = function(emails) {
+  approvedList = emails;
+  localStorage.setItem("approvedEmails", JSON.stringify(emails));
+  sessionStorage.removeItem("authed");
+  sessionStorage.removeItem("userEmail");
+  location.reload();
 };
 </script>
 
@@ -786,83 +725,6 @@ document.addEventListener("DOMContentLoaded",async function(){
 });
 
 
-</script>
-
-<!-- ACCESS CONTROL MANAGER SECTION -->
-<div id="accessMgrSection" style="display:none;margin-bottom:24px;padding:18px;background:var(--blue-soft);border:1.5px solid var(--blue);border-radius:var(--radius);color:var(--ink);">
-  <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--blue);">📋 Trainee Access Control</h3>
-  
-  <div style="margin-bottom:14px;">
-    <label style="font-size:12px;font-weight:600;color:var(--ink2);display:block;margin-bottom:6px;">Paste Approved Emails (one per line or CSV):</label>
-    <textarea id="emailListInput" placeholder="john@homeaglow.com&#10;sarah@homeaglow.com&#10;mike@homeaglow.com" style="width:100%;height:140px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:monospace;resize:vertical;outline:none;"></textarea>
-  </div>
-  
-  <div style="display:flex;gap:8px;align-items:center;">
-    <button id="updateAccessListBtn" style="padding:8px 14px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Update Access List</button>
-    <button id="downloadTemplateBtn" style="padding:8px 14px;background:var(--surface2);color:var(--ink2);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Download Template</button>
-    <span id="accessMgrStatus" style="font-size:11px;color:var(--ink-soft);"></span>
-  </div>
-</div>
-
-<script>
-// Manager access control section
-const emailListInput = document.getElementById("emailListInput");
-const updateAccessListBtn = document.getElementById("updateAccessListBtn");
-const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
-const accessMgrStatus = document.getElementById("accessMgrStatus");
-
-// Show/hide manager section
-window.showAccessMgrSection = function() {
-  document.getElementById("accessMgrSection").style.display = "block";
-  
-  // Load current list
-  const current = window.getApprovedEmails() || [];
-  emailListInput.value = current.join("\n");
-};
-
-// Update access list
-updateAccessListBtn.addEventListener("click", function() {
-  const text = emailListInput.value.trim();
-  if (!text) {
-    accessMgrStatus.textContent = "❌ Please enter at least one email";
-    return;
-  }
-  
-  // Parse emails (handle CSV or newline-separated)
-  let emails = [];
-  const lines = text.split(/[\n,]/);
-  
-  for (let line of lines) {
-    const email = line.trim().toLowerCase();
-    if (email && email.includes("@")) {
-      emails.push(email);
-    }
-  }
-  
-  if (emails.length === 0) {
-    accessMgrStatus.textContent = "❌ No valid emails found";
-    return;
-  }
-  
-  // Remove duplicates
-  emails = [...new Set(emails)];
-  
-  // Update system
-  window.updateApprovedEmails(emails);
-  accessMgrStatus.textContent = "✓ List updated! All users logged out.";
-  accessMgrStatus.style.color = "var(--green)";
-});
-
-// Download template
-downloadTemplateBtn.addEventListener("click", function() {
-  const csv = "email,name,status\njohn.trainee@homeaglow.com,John Smith,Active\nsarah.trainee@homeaglow.com,Sarah Johnson,Active";
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "TRAINEE_APPROVED_LIST.csv";
-  a.click();
-});
 </script>
 </body>
 </html>
