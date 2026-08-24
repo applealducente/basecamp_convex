@@ -199,7 +199,7 @@ a:hover{color:var(--gold);}
 </style>
 </head>
 <body>
-<!-- SIMPLE ACCESS CONTROL -->
+<!-- ACCESS CONTROL LOGIN MODAL -->
 <div id="accessModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(30,58,95,0.95);display:flex;align-items:center;justify-content:center;z-index:9999;">
   <div style="background:#fff;padding:40px;border-radius:14px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
     <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Handbook Access</h2>
@@ -210,54 +210,93 @@ a:hover{color:var(--gold);}
   </div>
 </div>
 
+<!-- ADMIN CONTROL PANEL MODAL -->
+<div id="adminModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;z-index:9998;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:30px;border-radius:14px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;font-weight:700;">📋 Trainee Access Control</h2>
+      <button id="closeAdminBtn" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+    </div>
+    
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#333;display:block;margin-bottom:6px;">Approved Emails (one per line):</label>
+      <textarea id="adminEmailList" placeholder="john@homeaglow.com&#10;sarah@homeaglow.com" style="width:100%;height:150px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:monospace;resize:vertical;"></textarea>
+    </div>
+    
+    <div style="display:flex;gap:10px;">
+      <button id="adminUpdateBtn" style="flex:1;padding:10px;background:#16A34A;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Update List</button>
+      <button id="adminDownloadBtn" style="flex:1;padding:10px;background:#2563EB;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Download CSV</button>
+    </div>
+    <p id="adminMsg" style="margin-top:12px;font-size:12px;text-align:center;color:#666;"></p>
+  </div>
+</div>
+
 <script>
-const modal = document.getElementById("accessModal");
+// ACCESS CONTROL SYSTEM
+const accessModal = document.getElementById("accessModal");
 const emailInput = document.getElementById("accessEmail");
 const submitBtn = document.getElementById("accessSubmit");
-const msg = document.getElementById("accessMsg");
+const accessMsg = document.getElementById("accessMsg");
+
+// ADMIN PANEL
+const adminModal = document.getElementById("adminModal");
+const adminEmailList = document.getElementById("adminEmailList");
+const adminUpdateBtn = document.getElementById("adminUpdateBtn");
+const adminDownloadBtn = document.getElementById("adminDownloadBtn");
+const closeAdminBtn = document.getElementById("closeAdminBtn");
+const adminMsg = document.getElementById("adminMsg");
 
 let approvedList = [];
 
+// Load approved emails from storage
 function loadList() {
   const stored = localStorage.getItem("approvedEmails");
   if (stored) {
-    try { approvedList = JSON.parse(stored); }
-    catch(e) { approvedList = []; }
+    try { 
+      approvedList = JSON.parse(stored); 
+    } catch(e) { 
+      approvedList = []; 
+    }
   } else {
+    // Default approved emails
     approvedList = ["ulyssesalducente@homeaglowsalesonce.com", "apple@homeaglow.com"];
+    localStorage.setItem("approvedEmails", JSON.stringify(approvedList));
   }
 }
 
+// Check if user is authenticated
 function checkAuth() {
-  const sess = sessionStorage.getItem("authed");
+  const sess = sessionStorage.getItem("handbookAuth");
   const email = sessionStorage.getItem("userEmail");
   
   loadList();
   
   if (!sess || !approvedList.includes(email)) {
-    modal.style.display = "flex";
+    accessModal.style.display = "flex";
     return false;
   }
   
-  modal.style.display = "none";
+  accessModal.style.display = "none";
   return true;
 }
 
+// Initialize on page load
 loadList();
 checkAuth();
 
+// Login handler
 submitBtn.onclick = function() {
   const email = emailInput.value.toLowerCase().trim();
   if (!email) return;
   
   if (approvedList.includes(email)) {
-    sessionStorage.setItem("authed", "1");
+    sessionStorage.setItem("handbookAuth", "1");
     sessionStorage.setItem("userEmail", email);
-    modal.style.display = "none";
+    accessModal.style.display = "none";
   } else {
-    msg.style.display = "block";
-    msg.textContent = "❌ Not authorized. Contact your manager.";
-    msg.style.color = "#dc2626";
+    accessMsg.style.display = "block";
+    accessMsg.textContent = "❌ Not authorized. Contact your manager.";
+    accessMsg.style.color = "#dc2626";
   }
 };
 
@@ -265,12 +304,68 @@ emailInput.onkeypress = function(e) {
   if (e.key === "Enter") submitBtn.click();
 };
 
-window.updateAccessList = function(emails) {
+// Admin panel - show
+window.showAdminPanel = function() {
+  loadList();
+  adminEmailList.value = approvedList.join("\n");
+  adminModal.style.display = "flex";
+};
+
+// Admin panel - close
+closeAdminBtn.onclick = function() {
+  adminModal.style.display = "none";
+};
+
+// Admin panel - update
+adminUpdateBtn.onclick = function() {
+  const text = adminEmailList.value.trim();
+  if (!text) {
+    adminMsg.textContent = "❌ Please enter at least one email";
+    adminMsg.style.color = "#dc2626";
+    return;
+  }
+  
+  let emails = [];
+  const lines = text.split(/[\n,]/);
+  
+  for (let line of lines) {
+    const email = line.trim().toLowerCase();
+    if (email && email.includes("@")) {
+      emails.push(email);
+    }
+  }
+  
+  if (emails.length === 0) {
+    adminMsg.textContent = "❌ No valid emails found";
+    adminMsg.style.color = "#dc2626";
+    return;
+  }
+  
+  // Remove duplicates
+  emails = [...new Set(emails)];
+  
   approvedList = emails;
   localStorage.setItem("approvedEmails", JSON.stringify(emails));
-  sessionStorage.removeItem("authed");
+  sessionStorage.removeItem("handbookAuth");
   sessionStorage.removeItem("userEmail");
-  location.reload();
+  
+  adminMsg.textContent = "✓ List updated! All users logged out.";
+  adminMsg.style.color = "#16A34A";
+  
+  setTimeout(function() {
+    location.reload();
+  }, 1500);
+};
+
+// Admin panel - download CSV
+adminDownloadBtn.onclick = function() {
+  const csv = "email\n" + approvedList.join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "TRAINEE_APPROVED_LIST.csv";
+  a.click();
 };
 </script>
 
@@ -704,7 +799,16 @@ document.addEventListener("DOMContentLoaded",async function(){
     }
   }
   
-  document.getElementById("mgrBtn").onclick=requestMgr;
+  
+document.getElementById("adminBtn").onclick = function() {
+  var pw = prompt("Enter admin password:");
+  if (pw === "convex2026") {
+    window.showAdminPanel();
+  } else if (pw !== null) {
+    alert("Incorrect password");
+  }
+};
+document.getElementById("mgrBtn").onclick=requestMgr;
   searchInput.addEventListener("input",function(){if(document.body.classList.contains("showing-page"))goHome();renderHome(searchInput.value,activeCat);});
   catTabs.addEventListener("click",function(e){
     var tab=e.target.closest(".cat-tab");if(!tab)return;
