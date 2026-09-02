@@ -209,14 +209,10 @@ a:hover{color:var(--gold);}
   </div>
 </div>
 
-<!-- REFRESH BUTTON (Hidden until logged in) -->
-<button id="refreshBtn" onclick="doSmartRefresh()" style="position:fixed;top:20px;right:20px;padding:10px 16px;background:#1E3A5F;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;z-index:1000;display:none;font-size:14px;">🔄 Refresh</button>
-
 <script>
 var weeklyPassword = "convex-sept2026";
 var supportPassword = "BradyBunch";
 var SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours
-var isSmartRefresh = false; // Track if refresh button was clicked
 
 function checkPassword() {
   var input = document.getElementById("accessPassword").value;
@@ -224,43 +220,17 @@ function checkPassword() {
     sessionStorage.auth = "yes";
     sessionStorage.loginTime = Date.now();
     document.getElementById("loginModal").style.display = "none";
-    document.getElementById("refreshBtn").style.display = "block";
   } else {
     document.getElementById("errorMsg").style.display = "block";
     document.getElementById("accessPassword").value = "";
   }
 }
 
-function doSmartRefresh() {
-  isSmartRefresh = true; // Mark as intentional refresh
-  location.reload(true); // Hard refresh (clears cache)
-}
-
 function checkAccess() {
-  // If refresh button was clicked, don't logout
-  if (isSmartRefresh) {
-    isSmartRefresh = false;
-    document.getElementById("loginModal").style.display = "none";
-    document.getElementById("refreshBtn").style.display = "block";
-    return true;
-  }
-  
-  // Check if page was refreshed (manual)
-  var isRefresh = performance.navigation.type === 1;
-  
-  if (isRefresh) {
-    // Manual page refresh = logout
-    sessionStorage.removeItem("auth");
-    sessionStorage.removeItem("loginTime");
-    document.getElementById("loginModal").style.display = "flex";
-    document.getElementById("refreshBtn").style.display = "none";
-    return false;
-  }
   
   var loginTime = sessionStorage.loginTime;
   if (!sessionStorage.auth || !loginTime) {
     document.getElementById("loginModal").style.display = "flex";
-    document.getElementById("refreshBtn").style.display = "none";
     return false;
   }
   
@@ -270,13 +240,11 @@ function checkAccess() {
     sessionStorage.removeItem("auth");
     sessionStorage.removeItem("loginTime");
     document.getElementById("loginModal").style.display = "flex";
-    document.getElementById("refreshBtn").style.display = "none";
     return false;
   }
   
   // Still logged in
   document.getElementById("loginModal").style.display = "none";
-  document.getElementById("refreshBtn").style.display = "block";
   return true;
 }
 
@@ -295,7 +263,6 @@ setInterval(function() {
       sessionStorage.removeItem("auth");
       sessionStorage.removeItem("loginTime");
       document.getElementById("loginModal").style.display = "flex";
-      document.getElementById("refreshBtn").style.display = "none";
     }
   }
 }, 60000);
