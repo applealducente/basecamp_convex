@@ -211,11 +211,13 @@ a:hover{color:var(--gold);}
 
 <script>
 var password = "convex-sept2026";
+var SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours
 
 function checkPassword() {
   var input = document.getElementById("accessPassword").value;
   if (input === password) {
     sessionStorage.auth = "yes";
+    sessionStorage.loginTime = Date.now();
     document.getElementById("loginModal").style.display = "none";
   } else {
     document.getElementById("errorMsg").style.display = "block";
@@ -223,13 +225,56 @@ function checkPassword() {
   }
 }
 
-if (sessionStorage.auth) {
+function checkAccess() {
+  // Check if page was refreshed
+  var isRefresh = performance.navigation.type === 1;
+  
+  if (isRefresh) {
+    // Page refreshed = logout
+    sessionStorage.removeItem("auth");
+    sessionStorage.removeItem("loginTime");
+    document.getElementById("loginModal").style.display = "flex";
+    return false;
+  }
+  
+  var loginTime = sessionStorage.loginTime;
+  if (!sessionStorage.auth || !loginTime) {
+    document.getElementById("loginModal").style.display = "flex";
+    return false;
+  }
+  
+  // Check if 12 hours elapsed
+  var elapsed = Date.now() - parseInt(loginTime);
+  if (elapsed > SESSION_TIMEOUT) {
+    sessionStorage.removeItem("auth");
+    sessionStorage.removeItem("loginTime");
+    document.getElementById("loginModal").style.display = "flex";
+    return false;
+  }
+  
+  // Still logged in
   document.getElementById("loginModal").style.display = "none";
+  return true;
 }
+
+// Run on page load
+checkAccess();
 
 document.getElementById("accessPassword").addEventListener("keypress", function(e) {
   if (e.key === "Enter") checkPassword();
 });
+
+// Check timeout every minute
+setInterval(function() {
+  if (sessionStorage.auth) {
+    var elapsed = Date.now() - parseInt(sessionStorage.loginTime);
+    if (elapsed > SESSION_TIMEOUT) {
+      sessionStorage.removeItem("auth");
+      sessionStorage.removeItem("loginTime");
+      document.getElementById("loginModal").style.display = "flex";
+    }
+  }
+}, 60000);
 </script>
 
 
